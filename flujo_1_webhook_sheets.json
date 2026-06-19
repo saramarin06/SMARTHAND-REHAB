@@ -1,0 +1,90 @@
+{
+  "name": "Guante rehabilitacion - Webhook a Google Sheets",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "guante-rehabilitacion",
+        "responseMode": "responseNode"
+      },
+      "id": "WebhookSesion",
+      "name": "Webhook Sesion",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $json.body || $json;\nreturn [{\n  json: {\n    Paciente: b.paciente,\n    Fecha: b.fecha,\n    Duracion: b.duracion,\n    D1_ROM: b.d1_rom,\n    D1_Reps: b.d1_reps,\n    D2_ROM: b.d2_rom,\n    D2_Reps: b.d2_reps,\n    D3_ROM: b.d3_rom,\n    D3_Reps: b.d3_reps,\n    ROM_Promedio: b.rom_promedio,\n    Reps_Totales: b.reps_totales,\n    ResumenIA: b.resumen_ia\n  }\n}];"
+      },
+      "id": "PrepararFila",
+      "name": "Preparar fila Sheets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "REEMPLAZAR_ID_GOOGLE_SHEET",
+        "sheetName": "Sesiones",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Paciente": "={{ $json.Paciente }}",
+            "Fecha": "={{ $json.Fecha }}",
+            "Duracion": "={{ $json.Duracion }}",
+            "D1_ROM": "={{ $json.D1_ROM }}",
+            "D1_Reps": "={{ $json.D1_Reps }}",
+            "D2_ROM": "={{ $json.D2_ROM }}",
+            "D2_Reps": "={{ $json.D2_Reps }}",
+            "D3_ROM": "={{ $json.D3_ROM }}",
+            "D3_Reps": "={{ $json.D3_Reps }}",
+            "ROM_Promedio": "={{ $json.ROM_Promedio }}",
+            "Reps_Totales": "={{ $json.Reps_Totales }}",
+            "ResumenIA": "={{ $json.ResumenIA }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "AppendSesion",
+      "name": "Google Sheets Append Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [800, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REEMPLAZAR_CREDENCIAL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"ok\": true, \"mensaje\": \"Sesion registrada\"}"
+      },
+      "id": "ResponderCollector",
+      "name": "Responder Collector",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1080, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Sesion": {
+      "main": [[{"node": "Preparar fila Sheets", "type": "main", "index": 0}]]
+    },
+    "Preparar fila Sheets": {
+      "main": [[{"node": "Google Sheets Append Row", "type": "main", "index": 0}]]
+    },
+    "Google Sheets Append Row": {
+      "main": [[{"node": "Responder Collector", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "guante-webhook-sheets-v1"
+}

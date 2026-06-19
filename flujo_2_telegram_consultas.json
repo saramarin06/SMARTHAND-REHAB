@@ -1,0 +1,197 @@
+{
+  "name": "Guante rehabilitacion - Telegram consultas",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"]
+      },
+      "id": "TelegramTrigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "REEMPLAZAR_CREDENCIAL_TELEGRAM",
+          "name": "Telegram Bot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $json.message?.text || '';\nconst parts = text.trim().split(/\\s+/);\nconst comando = (parts[0] || '').split('@')[0].toLowerCase();\nconst paciente = parts.slice(1).join(' ').trim();\nreturn [{\n  json: {\n    chat_id: $json.message.chat.id,\n    comando,\n    paciente\n  }\n}];"
+      },
+      "id": "ParseCommand",
+      "name": "Parsear comando",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.comando }}",
+                    "rightValue": "/ultima",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "ultima"
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.comando }}",
+                    "rightValue": "/historial",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "historial"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "SwitchComando",
+      "name": "Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "documentId": "REEMPLAZAR_ID_GOOGLE_SHEET",
+        "sheetName": "Sesiones",
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Paciente",
+              "lookupValue": "={{ $json.paciente }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "SheetsUltima",
+      "name": "Buscar sesiones ultima",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [980, 180],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REEMPLAZAR_CREDENCIAL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function parseFecha(valor) {\n  const [fecha, hora = '00:00:00'] = String(valor || '').split(' ');\n  const [d, m, y] = fecha.split('/').map(Number);\n  const [hh, mm, ss] = hora.split(':').map(Number);\n  return new Date(y, m - 1, d, hh || 0, mm || 0, ss || 0);\n}\nconst rows = $input.all().map(i => i.json);\nrows.sort((a, b) => parseFecha(b.Fecha) - parseFecha(a.Fecha));\nconst r = rows[0];\nconst chatId = $('Parsear comando').first().json.chat_id;\nif (!r) {\n  return [{ json: { chat_id: chatId, text: 'No se encontraron sesiones para ese paciente.' } }];\n}\nconst min = Math.round(Number(r.Duracion || 0) / 60);\nconst text = `Paciente: ${r.Paciente}\\n\\nÚltima sesión:\\n\\nFecha: ${r.Fecha}\\nDuración: ${min} min\\n\\nDedo 1\\nROM:${r.D1_ROM}°\\nRepeticiones:${r.D1_Reps}\\n\\nDedo 2\\nROM:${r.D2_ROM}°\\nRepeticiones:${r.D2_Reps}\\n\\nDedo 3\\nROM:${r.D3_ROM}°\\nRepeticiones:${r.D3_Reps}\\n\\nROM promedio:\\n${r.ROM_Promedio}°\\n\\nRepeticiones totales:\\n${r.Reps_Totales}\\n\\nResumen:\\n${r.ResumenIA || 'Sin resumen registrado.'}`;\nreturn [{ json: { chat_id: chatId, text } }];"
+      },
+      "id": "FormatearUltima",
+      "name": "Formatear ultima",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1240, 180]
+    },
+    {
+      "parameters": {
+        "documentId": "REEMPLAZAR_ID_GOOGLE_SHEET",
+        "sheetName": "Sesiones",
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Paciente",
+              "lookupValue": "={{ $json.paciente }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "SheetsHistorial",
+      "name": "Buscar sesiones historial",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [980, 420],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REEMPLAZAR_CREDENCIAL",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "function parseFecha(valor) {\n  const [fecha, hora = '00:00:00'] = String(valor || '').split(' ');\n  const [d, m, y] = fecha.split('/').map(Number);\n  const [hh, mm, ss] = hora.split(':').map(Number);\n  return new Date(y, m - 1, d, hh || 0, mm || 0, ss || 0);\n}\nconst rows = $input.all().map(i => i.json);\nrows.sort((a, b) => parseFecha(b.Fecha) - parseFecha(a.Fecha));\nconst recientes = rows.slice(0, 5);\nconst cronologico = [...recientes].reverse();\nconst chatId = $('Parsear comando').first().json.chat_id;\nconst paciente = $('Parsear comando').first().json.paciente;\nif (!recientes.length) {\n  return [{ json: { chat_id: chatId, text: 'No se encontraron sesiones para ese paciente.' } }];\n}\nlet lineas = [`${paciente} - Historial`, ''];\nrecientes.forEach((r, idx) => {\n  lineas.push(`Sesión ${recientes.length - idx} → ROM promedio ${Math.round(Number(r.ROM_Promedio || 0))}°`);\n});\nconst primera = Number(cronologico[0].ROM_Promedio || 0);\nconst ultima = Number(cronologico[cronologico.length - 1].ROM_Promedio || 0);\nlet tendencia = 'Sin cambio claro';\nif (ultima > primera) tendencia = 'Mejora progresiva';\nif (ultima < primera) tendencia = 'Variación descendente observada';\nlineas.push('', 'Tendencia:', tendencia);\nreturn [{ json: { chat_id: chatId, text: lineas.join('\\n') } }];"
+      },
+      "id": "FormatearHistorial",
+      "name": "Formatear historial",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1240, 420]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.text }}"
+      },
+      "id": "ResponderTelegram",
+      "name": "Responder Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1500, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "REEMPLAZAR_CREDENCIAL_TELEGRAM",
+          "name": "Telegram Bot account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [[{"node": "Parsear comando", "type": "main", "index": 0}]]
+    },
+    "Parsear comando": {
+      "main": [[{"node": "Switch", "type": "main", "index": 0}]]
+    },
+    "Switch": {
+      "main": [
+        [{"node": "Buscar sesiones ultima", "type": "main", "index": 0}],
+        [{"node": "Buscar sesiones historial", "type": "main", "index": 0}]
+      ]
+    },
+    "Buscar sesiones ultima": {
+      "main": [[{"node": "Formatear ultima", "type": "main", "index": 0}]]
+    },
+    "Formatear ultima": {
+      "main": [[{"node": "Responder Telegram", "type": "main", "index": 0}]]
+    },
+    "Buscar sesiones historial": {
+      "main": [[{"node": "Formatear historial", "type": "main", "index": 0}]]
+    },
+    "Formatear historial": {
+      "main": [[{"node": "Responder Telegram", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "guante-telegram-consultas-v1"
+}
