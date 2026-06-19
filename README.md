@@ -354,9 +354,6 @@ HandRehabSystem/
 │   ├── webhook_sheets_workflow.json
 │   └── telegram_query_workflow.json
 │
-├── Documentation/
-│   ├── User_Manual.pdf
-│   └── Poster.pdf
 │
 └── README.md
 ```
@@ -378,7 +375,9 @@ HandRehabSystem/
 #  Developers
 
 **Sara Marín**
+
 **Juan Felipe Vanegas**
+
 **Leon Arboleda**
 Biomedical Engineering Students
 Instituto Tecnológico Metropolitano (ITM)
